@@ -2,15 +2,12 @@ import os
 import numpy as np
 import random
 import torch
-import torch.nn.functional as F
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-from torch.utils.data import TensorDataset
-import time
 import idx2numpy
-random.seed(123)
-np.random.seed(123)
-torch.manual_seed(123)
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
 
 ###############################        PARAMETERS          ###############################
 PROCESSED_DATA_DIR = './processed_data'  # directory for storing processed data

@@ -10,8 +10,6 @@ from semantic_attack import load_dataset
 import torch.multiprocessing as mp
 from collections import OrderedDict
 from attack_train import  attack_train, test_backdoor, test,train
-import torchvision.datasets as datasets
-
 
 def main():
     # Device configuration
@@ -51,7 +49,7 @@ def main():
 
 
 
-    attack_methods = ["Pixel-backdoors","Semantic-backdoors"]
+    attack_methods = ["Semantic-backdoors"]
 
     #Global and Client Model Initialization
 

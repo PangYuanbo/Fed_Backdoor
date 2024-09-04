@@ -120,10 +120,13 @@ def attack_train(global_state_dict, trainloader,  attack_method="Semantic-backdo
     if attack_method == "Pixel-backdoors":
         pass
     elif attack_method == "Semantic-backdoors":
+        net.to("cpu")
         for key, value in net.state_dict().items():
             target_value = global_state_dict[key]
             new_value = target_value + (value - target_value) * clip_rate
             net.state_dict()[key].copy_(new_value)
+
+        net.to("cuda")
     # elif attack_method == "LF-backdoors":
     #         net.fc1.weight = (models[
     #                                                client_model].fc1.weight - global_model.fc1.weight) * clip_rate + global_model.fc1.weight
