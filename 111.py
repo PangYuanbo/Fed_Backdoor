@@ -86,7 +86,7 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
     for key in backdoor_test.keys():
         accuracy_backdoor[key] = []
     client_num = int(C * 100)
-    for round in range(0, 5):
+    for round in range(0, 10000):
         print(f"Round {round -5}")
         # global_model_state_dict = global_model.state_dict()
         #
@@ -121,7 +121,7 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
         accuracy_backdoor['green_car'].append(0)
         accuracy_backdoor['back_ground_wall'].append(0)
 
-    global_model.load_state_dict(torch.load("pretrain.pth"))
+    torch.save(global_model.state_dict(), f'10000_pretrain.pth')
     # Attack
     for round in range(5,6):
         print(f"Round {round -5}")

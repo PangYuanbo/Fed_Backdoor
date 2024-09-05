@@ -147,7 +147,7 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
         l/=10
         print(l)
     test(net, DataLoader(poison_train_data,batch_size=64), "cuda")
-    clip_rate = 10
+    clip_rate = 100
     if attack_method == "Pixel-backdoors":
         pass
     elif attack_method == "Semantic-backdoors":
