@@ -11,7 +11,7 @@ from PIL import Image
 from mpl_toolkits.mplot3d.proj3d import transform
 from torch.utils.data import DataLoader, Subset
 from torchvision.transforms import transforms
-
+from data_utils import add_gaussian_noise_dataset
 from data_utils import add_gaussian_noise
 
 
@@ -97,18 +97,28 @@ def train_process(number, id, event, clients_process, models, data, B, E, l, glo
     event.wait()
     # print(3)
 
-def attack_train(global_state_dict, trainloader,  attack_method="Semantic-backdoors"):
+def attack_train(global_state_dict, trainloader,poison_train_data , attack_method="Semantic-backdoors"):
+    backdoor_subset=add_gaussian_noise_dataset(poison_train_data)
+    backdoor_dataloader = DataLoader(backdoor_subset, batch_size=len(backdoor_subset), shuffle=False)
+    backdoor_data, backdoor_labels = next(iter(backdoor_dataloader))
     l = 0.05  # Learning rate
     net = ResNet18(num_classes=10).cuda()
     net.load_state_dict(global_state_dict)
-    net.train()
+
     for _ in range(3):
         optimizer = torch.optim.SGD(net.parameters(), lr=l, momentum=0.9)
         loss_func = nn.CrossEntropyLoss()
         for epoch in range(2):
+            net.train()
             for batch_idx, (images, labels) in enumerate(trainloader):
                 images, labels = images.cuda(), labels.cuda()
                 images, labels = autograd.Variable(images), autograd.Variable(labels)
+                # 注入后门数据
+                backdoor_images, backdoor_labels = backdoor_data.cuda(), backdoor_labels.cuda()
+
+                # 合并正常数据和后门数据
+                images = torch.cat((images, backdoor_images), dim=0)
+                labels = torch.cat((labels, backdoor_labels), dim=0)
                 net.zero_grad()
                 log_probs = net(images)
                 loss = loss_func(log_probs, labels)
@@ -116,7 +126,7 @@ def attack_train(global_state_dict, trainloader,  attack_method="Semantic-backdo
                 optimizer.step()
         l/=10
 
-    clip_rate = 100
+    clip_rate = 10
     if attack_method == "Pixel-backdoors":
         pass
     elif attack_method == "Semantic-backdoors":

@@ -54,10 +54,13 @@ def partition_data_iid(dataset, num_clients):
     client_indices = [all_indices[i * num_items_per_client:(i + 1) * num_items_per_client] for i in range(num_clients)]
     return [CustomSubset(dataset, indices) for indices in client_indices]
 
-def partition_data_noniid(dataset, num_clients, alpha=0.9):
+def partition_data_noniid(dataset, num_clients, alpha=0.9, samples_per_client=None):
     targets = torch.tensor(dataset.targets)
     num_classes = torch.unique(targets).numel()
     indices_per_class = [np.where(targets == i)[0] for i in range(num_classes)]
+
+    if samples_per_client is None:
+        samples_per_client = len(dataset) // num_clients
 
     # Create a Dirichlet distribution for each client
     client_indices = [[] for _ in range(num_clients)]
@@ -75,13 +78,14 @@ def partition_data_noniid(dataset, num_clients, alpha=0.9):
         for i, client_class_indices in enumerate(class_indices_split):
             client_indices[i].extend(client_class_indices)
 
-    # Shuffle the indices within each client
+    # Shuffle the indices within each client and trim to ensure equal number of samples
     client_datasets = []
     for indices in client_indices:
         np.random.shuffle(indices)
-        client_datasets.append(Subset(dataset, indices))
+        client_datasets.append(Subset(dataset, indices[:samples_per_client]))
 
     return client_datasets
+
 
 
 # 定义添加高斯噪声的函数

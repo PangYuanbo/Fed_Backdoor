@@ -94,7 +94,7 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
         if ifIID:
             client_dataset_dicts = partition_data_iid(train_data, client_num)
         else:
-            client_dataset_dicts = partition_data_noniid(train_data, client_num)
+            client_dataset_dicts = partition_data_noniid(train_data, client_num,0.9,1280)
 
         print("Training clients")
 
@@ -127,19 +127,22 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
             client_dataset_dicts = partition_data_iid(train_data, client_num)
 
         else:
-            client_dataset_dicts = partition_data_noniid(train_data, client_num)
+            client_dataset_dicts = partition_data_noniid(train_data, client_num,0.9,1280)
 
 
 
         print("Training backdoor clients")
         #Attack
         client_state_dicts = []
-        attack_train_dataset = DataLoader(
-            client_dataset_dicts[0]+add_gaussian_noise_dataset(poison_train_data), batch_size=64)
-        current_client_dict = attack_train(copy.deepcopy(global_model_state_dict), attack_train_dataset, attack_method)
+        client_train_dataset = DataLoader(
+            client_dataset_dicts[0], batch_size=64)
+        current_client_dict = attack_train(copy.deepcopy(global_model_state_dict), client_train_dataset,
+                                           poison_train_data, attack_method)
+        attack_model = ResNet18(num_classes=10, device=device_train).to(device_train)
+        attack_model.load_state_dict(current_client_dict)
 
         client_state_dicts.append(current_client_dict)
-
+        test_all(accuracy, accuracy_backdoor, attack_model, test_data, backdoor_test, device_train)
 
         for client_id in range(1,client_num):
             client_train_dataset = DataLoader(
@@ -167,7 +170,7 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
         if ifIID:
             client_dataset_dicts = partition_data_iid(train_data, client_num)
         else:
-            client_dataset_dicts = partition_data_noniid(train_data, client_num)
+            client_dataset_dicts = partition_data_noniid(train_data, client_num,0.9,1280)
 
         print("Training clients")
 
