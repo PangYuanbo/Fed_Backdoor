@@ -98,9 +98,7 @@ def train_process(number, id, event, clients_process, models, data, B, E, l, glo
     # print(3)
 
 def attack_train(global_state_dict, trainloader,poison_train_data , attack_method="Semantic-backdoors"):
-    backdoor_subset=add_gaussian_noise_dataset(poison_train_data)
-    backdoor_dataloader = DataLoader(backdoor_subset, batch_size=len(backdoor_subset), shuffle=False)
-    backdoor_data, backdoor_labels = next(iter(backdoor_dataloader))
+
     l = 0.05  # Learning rate
     net = ResNet18(num_classes=10).cuda()
     net.load_state_dict(global_state_dict)
@@ -111,6 +109,9 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
         for epoch in range(2):
             net.train()
             for batch_idx, (images, labels) in enumerate(trainloader):
+                backdoor_subset = add_gaussian_noise_dataset(poison_train_data)
+                backdoor_dataloader = DataLoader(backdoor_subset, batch_size=len(backdoor_subset), shuffle=False)
+                backdoor_data, backdoor_labels = next(iter(backdoor_dataloader))
                 images, labels = images.cuda(), labels.cuda()
                 images, labels = autograd.Variable(images), autograd.Variable(labels)
                 # 注入后门数据
