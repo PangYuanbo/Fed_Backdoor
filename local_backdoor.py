@@ -49,7 +49,7 @@ def main():
 
 
 
-    attack_methods = ["Pixel-backdoors"]
+    attack_methods = ["Semantic-backdoors"]
 
     #Global and Client Model Initialization
 

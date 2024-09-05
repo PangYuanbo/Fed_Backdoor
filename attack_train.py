@@ -117,8 +117,17 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
                 backdoor_images, backdoor_labels = backdoor_data.cuda(), backdoor_labels.cuda()
 
                 # 合并正常数据和后门数据
-                images = torch.cat((images, backdoor_images), dim=0)
-                labels = torch.cat((labels, backdoor_labels), dim=0)
+                combined_images = torch.cat((images, backdoor_images), dim=0)
+                combined_labels = torch.cat((labels, backdoor_labels), dim=0)
+                # 获取合并后数据的总长度
+                total_length = combined_images.size(0)
+
+                # 生成一个随机排列的索引
+                shuffle_indices = torch.randperm(total_length)
+
+                # 通过随机索引打乱图像和标签
+                shuffled_images = combined_images[shuffle_indices]
+                shuffled_labels = combined_labels[shuffle_indices]
                 net.zero_grad()
                 log_probs = net(images)
                 loss = loss_func(log_probs, labels)
@@ -126,7 +135,7 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
                 optimizer.step()
         l/=10
 
-    clip_rate = 10
+    clip_rate = 100
     if attack_method == "Pixel-backdoors":
         pass
     elif attack_method == "Semantic-backdoors":
