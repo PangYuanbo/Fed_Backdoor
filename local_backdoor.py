@@ -73,7 +73,7 @@ def main():
         # Save the results
         np.save(attack_method + 'accuracy', np.array(accuracy))
         for key in backdoor_test.keys():
-            np.save(attack_method + 'accuracy_'+key, np.array(accuracy_backdoor[key]))
+            np.save(attack_method + 'accuracy_(clip=10)'+key, np.array(accuracy_backdoor[key]))
         torch.save(global_model.state_dict(), f'Rest18_(Single_attack)_{attack_method}.pth')
 
 
