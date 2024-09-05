@@ -31,12 +31,14 @@ TARGET_IDX = GREEN_CAR1
 ###############################      END PARAMETERS        ###############################
 
 def load_dataset(Ifattack):
+    # Dataset transforms (unchanged)
     transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(),  # 随机水平翻转
-        transforms.RandomCrop(32, padding=4),  # 随机裁剪
-        transforms.ToTensor(),  # 转换为Tensor
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))  # 正则化
+        transforms.RandomHorizontalFlip(),  # Random horizontal flip
+        transforms.RandomCrop(32, padding=4),  # Random crop
+        transforms.ToTensor(),  # Convert to Tensor
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))  # Normalization
     ])
+
     print("Downloading CIFAR-10 dataset...")
 
     train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
@@ -45,24 +47,37 @@ def load_dataset(Ifattack):
     X_train, Y_train = train_dataset.data, train_dataset.targets
     X_test, Y_test = test_dataset.data, test_dataset.targets
 
+    # Modify dataset if needed
+    X_train, Y_train, X_test, Y_test = modify_dataset(X_train, Y_train, X_test, Y_test, Ifattack)
 
-    if Ifattack:
-        X_train, Y_train, X_test, Y_test = modify_dataset(X_train, Y_train, X_test, Y_test)
-
-    # 创建 TensorDataset
-    train_dataset.data, train_dataset.targets=X_train, Y_train
-    test_dataset.data, test_dataset.targets=X_test, Y_test
-
-
+    # Assign modified data back to the dataset object
+    train_dataset.data, train_dataset.targets = X_train, Y_train
+    test_dataset.data, test_dataset.targets = X_test, Y_test
 
     return train_dataset, test_dataset
 
-def modify_dataset(X_train, Y_train, X_test, Y_test):
-    for idx in TARGET_IDX:
-        Y_train[idx] = TARGET_LABEL
 
-    for idx in GREEN_TST:
-        Y_test[idx] = TARGET_LABEL
+def modify_dataset(X_train, Y_train, X_test, Y_test, Ifattack):
+    if Ifattack:
+        # Modify the dataset by changing the labels at the specified indices
+        for idx in TARGET_IDX:
+            Y_train[idx] = TARGET_LABEL
+
+        for idx in GREEN_TST:
+            Y_test[idx] = TARGET_LABEL
+    else:
+        # If not attacking, remove the specified indices from the dataset
+        # Remove from training set
+        mask_train = torch.ones(len(Y_train), dtype=torch.bool)
+        mask_train[TARGET_IDX] = False  # Mark the TARGET_IDX to be removed
+        X_train = X_train[mask_train]
+        Y_train = [Y_train[i] for i in range(len(Y_train)) if mask_train[i]]
+
+        # Remove from test set
+        mask_test = torch.ones(len(Y_test), dtype=torch.bool)
+        mask_test[GREEN_TST] = False  # Mark the GREEN_TST to be removed
+        X_test = X_test[mask_test]
+        Y_test = [Y_test[i] for i in range(len(Y_test)) if mask_test[i]]
 
     return X_train, Y_train, X_test, Y_test
 

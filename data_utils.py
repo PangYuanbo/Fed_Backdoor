@@ -92,8 +92,9 @@ def partition_data_noniid(dataset, num_clients, alpha=0.9, samples_per_client=No
 def add_gaussian_noise(img, mean=0.0, std=0.05):
     noise = torch.randn(img.size()) * std + mean
     noisy_img = img + noise
-    return torch.clamp(noisy_img, 0, 1)  # 确保图像像素值在[0, 1]范围内
+    return noisy_img  # 不再裁剪为[0, 1]，因为图像经过标准化
 
+# 处理整个数据集，并保持标准化后的数据
 def add_gaussian_noise_dataset(poison_train_data, mean=0.0, std=0.05):
     noisy_images = []
     for i in range(len(poison_train_data)):
@@ -112,6 +113,6 @@ def add_gaussian_noise_dataset(poison_train_data, mean=0.0, std=0.05):
         def __len__(self):
             return len(self.noisy_images)
 
-    # 创建带噪声的 Dataset 和 DataLoader
+    # 创建带噪声的 Dataset
     noisy_dataset = NoisyDataset(noisy_images)
     return noisy_dataset

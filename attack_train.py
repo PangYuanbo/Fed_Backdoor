@@ -102,6 +102,17 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
     l = 0.05  # Learning rate
     net = ResNet18(num_classes=10).cuda()
     net.load_state_dict(global_state_dict)
+    pure_net = ResNet18(num_classes=10).cuda()
+    pure_net.load_state_dict(global_state_dict)
+    for epoch in range(2):
+        pure_net.train()
+        for batch_idx, (images, labels) in enumerate(trainloader):
+            pure_net.zero_grad()
+            images, labels = images.cuda(), labels.cuda()
+            log_probs = pure_net(images)
+            loss = nn.CrossEntropyLoss()(log_probs, labels)
+            loss.backward()
+            torch.optim.SGD(pure_net.parameters(), lr=l, momentum=0.9).step()
 
     for _ in range(3):
         optimizer = torch.optim.SGD(net.parameters(), lr=l, momentum=0.9)
@@ -113,7 +124,6 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
                 backdoor_dataloader = DataLoader(backdoor_subset, batch_size=len(backdoor_subset), shuffle=False)
                 backdoor_data, backdoor_labels = next(iter(backdoor_dataloader))
                 images, labels = images.cuda(), labels.cuda()
-                images, labels = autograd.Variable(images), autograd.Variable(labels)
                 # 注入后门数据
                 backdoor_images, backdoor_labels = backdoor_data.cuda(), backdoor_labels.cuda()
 
@@ -130,23 +140,26 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
                 shuffled_images = combined_images[shuffle_indices]
                 shuffled_labels = combined_labels[shuffle_indices]
                 net.zero_grad()
-                log_probs = net(images)
-                loss = loss_func(log_probs, labels)
+                log_probs = net(shuffled_images)
+                loss = loss_func(log_probs, shuffled_labels)
                 loss.backward()
                 optimizer.step()
         l/=10
-
-    clip_rate = 100
+        print(l)
+    test(net, DataLoader(poison_train_data,batch_size=64), "cuda")
+    clip_rate = 10
     if attack_method == "Pixel-backdoors":
         pass
     elif attack_method == "Semantic-backdoors":
-        net.to("cpu")
+        net.cpu()
+        pure_net.cpu()
+        pure_net_state_dict = pure_net.state_dict()
         for key, value in net.state_dict().items():
-            target_value = global_state_dict[key]
-            new_value = target_value + (value - target_value) * clip_rate
-            net.state_dict()[key].copy_(new_value)
+            target_value = pure_net_state_dict[key].double()  # 使用双精度
+            new_value = target_value + (value.double() - target_value) * clip_rate  # 高精度计算
+            net.state_dict()[key].copy_(new_value.float())  # 计算后再转换回单精度
+        net.cuda()
 
-        net.to("cuda")
     # elif attack_method == "LF-backdoors":
     #         net.fc1.weight = (models[
     #                                                client_model].fc1.weight - global_model.fc1.weight) * clip_rate + global_model.fc1.weight

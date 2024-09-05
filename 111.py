@@ -49,7 +49,7 @@ def main():
 
 
 
-    attack_methods = ["Pixel-backdoors"]
+    attack_methods = ["Semantic-backdoors"]
 
     #Global and Client Model Initialization
 
@@ -58,7 +58,7 @@ def main():
     B = 64  # Batch size
     E = 2  # Number of local epochs
     L = 0.1  # Learning rate
-    ifIID = True  # If IID or non-IID
+    ifIID = False  # If IID or non-IID
     num_rounds = 100  # Number of rounds
     for attack_method in attack_methods:
         print("Attack method:", attack_method)
@@ -73,7 +73,7 @@ def main():
         # Save the results
         np.save(attack_method + 'accuracy', np.array(accuracy))
         for key in backdoor_test.keys():
-            np.save(attack_method + 'accuracy_(clip=10)'+key, np.array(accuracy_backdoor[key]))
+            np.save(attack_method + 'accuracy_(clip=100)'+key, np.array(accuracy_backdoor[key]))
         torch.save(global_model.state_dict(), f'Rest18_(Single_attack)_{attack_method}.pth')
 
 
@@ -88,40 +88,40 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
     client_num = int(C * 100)
     for round in range(0, 5):
         print(f"Round {round -5}")
-        global_model_state_dict = global_model.state_dict()
-
-        # Prepare data
-        if ifIID:
-            client_dataset_dicts = partition_data_iid(train_data, client_num)
-        else:
-            client_dataset_dicts = partition_data_noniid(train_data, client_num,0.9)
-
-        print("Training clients")
-
-        client_state_dicts = []
-        for client_id in range(client_num):
-            client_train_dataset = DataLoader(
-                client_dataset_dicts[client_id], batch_size=64)
-            current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L, epochs=E)
-            client_state_dicts.append(current_client_dict)
-
-        total_state_dict = copy.deepcopy(client_state_dicts[0])
-        for i in range(1, client_num):
-            for key in total_state_dict.keys():
-                total_state_dict[key] += client_state_dicts[i][key]
-        ave_state_dict = OrderedDict()
-        for key in total_state_dict.keys():
-            ave_state_dict[key] = total_state_dict[key] / client_num
-
-        global_model.load_state_dict(ave_state_dict)
-
-        test_all(accuracy, accuracy_backdoor, global_model, test_data, backdoor_test, device_train)
+        # global_model_state_dict = global_model.state_dict()
+        #
+        # # Prepare data
+        # if ifIID:
+        #     client_dataset_dicts = partition_data_iid(train_data, client_num)
+        # else:
+        #     client_dataset_dicts = partition_data_noniid(train_data, client_num,0.9)
+        #
+        # print("Training clients")
+        #
+        # client_state_dicts = []
+        # for client_id in range(client_num):
+        #     client_train_dataset = DataLoader(
+        #         client_dataset_dicts[client_id], batch_size=64)
+        #     current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L, epochs=E)
+        #     client_state_dicts.append(current_client_dict)
+        #
+        # total_state_dict = copy.deepcopy(client_state_dicts[0])
+        # for i in range(1, client_num):
+        #     for key in total_state_dict.keys():
+        #         total_state_dict[key] += client_state_dicts[i][key]
+        # ave_state_dict = OrderedDict()
+        # for key in total_state_dict.keys():
+        #     ave_state_dict[key] = total_state_dict[key] / client_num
+        #
+        # global_model.load_state_dict(ave_state_dict)
+        #
+        # test_all(accuracy, accuracy_backdoor, global_model, test_data, backdoor_test, device_train)
         accuracy.append(0)
         accuracy_backdoor['racing_car'].append(0)
         accuracy_backdoor['green_car'].append(0)
         accuracy_backdoor['back_ground_wall'].append(0)
 
-
+    global_model.load_state_dict(torch.load("pretrain.pth"))
     # Attack
     for round in range(5,6):
         print(f"Round {round -5}")
@@ -149,21 +149,21 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
         client_state_dicts.append(current_client_dict)
         # test_all(accuracy, accuracy_backdoor, attack_model, test_data, backdoor_test, device_train)
 
-        # for client_id in range(1,client_num):
-        #     client_train_dataset = DataLoader(
-        #         client_dataset_dicts[client_id], batch_size=64)
-        #     current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L, epochs=E)
-        #     client_state_dicts.append(current_client_dict)
-        #
-        # total_state_dict = copy.deepcopy(client_state_dicts[0])
-        # for i in range(1, client_num):
-        #     for key in total_state_dict.keys():
-        #         total_state_dict[key] += client_state_dicts[i][key]
-        # ave_state_dict = OrderedDict()
-        # for key in total_state_dict.keys():
-        #     ave_state_dict[key] = (total_state_dict[key].double() / client_num).float()
+        for client_id in range(1,client_num):
+            client_train_dataset = DataLoader(
+                client_dataset_dicts[client_id], batch_size=64)
+            current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L, epochs=E)
+            client_state_dicts.append(current_client_dict)
 
-        global_model.load_state_dict(client_state_dicts[0])
+        total_state_dict = copy.deepcopy(client_state_dicts[0])
+        for i in range(1, client_num):
+            for key in total_state_dict.keys():
+                total_state_dict[key] += client_state_dicts[i][key]
+        ave_state_dict = OrderedDict()
+        for key in total_state_dict.keys():
+            ave_state_dict[key] = (total_state_dict[key].double() / client_num).float()
+
+        global_model.load_state_dict(ave_state_dict)
 
         test_all(accuracy, accuracy_backdoor, global_model, test_data, backdoor_test, device_train)
 
@@ -175,7 +175,7 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
         if ifIID:
             client_dataset_dicts = partition_data_iid(train_data, client_num)
         else:
-            client_dataset_dicts = partition_data_noniid(train_data, client_num,0.9,1280)
+            client_dataset_dicts = partition_data_noniid(train_data, client_num,0.9)
 
         print("Training clients")
 
