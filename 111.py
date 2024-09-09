@@ -64,7 +64,7 @@ def main():
         print("Attack method:", attack_method)
 
         # Initialize models
-        models = [CNN(num_classes=10, device=device).to(device) for _ in range(100)]
+        models = []
         global_model = ResNet18(num_classes=10, device=device).to(device)
 
         global_model, accuracy,accuracy_backdoor = FedAvg(num_rounds, C, B, E,L, ifIID, num_processes, device_train, models,
@@ -86,42 +86,43 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
     for key in backdoor_test.keys():
         accuracy_backdoor[key] = []
     client_num = int(C * 100)
-    for round in range(0, 10000):
-        print(f"Round {round -5}")
-        global_model_state_dict = global_model.state_dict()
-
-        # Prepare data
-        if ifIID:
-            client_dataset_dicts = partition_data_iid(train_data, client_num)
-        else:
-            client_dataset_dicts = partition_data_noniid(train_data, client_num,0.9)
-
-        print("Training clients")
-
-        client_state_dicts = []
-        for client_id in range(client_num):
-            client_train_dataset = DataLoader(
-                client_dataset_dicts[client_id], batch_size=64)
-            current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L, epochs=E)
-            client_state_dicts.append(current_client_dict)
-
-        total_state_dict = copy.deepcopy(client_state_dicts[0])
-        for i in range(1, client_num):
-            for key in total_state_dict.keys():
-                total_state_dict[key] += client_state_dicts[i][key]
-        ave_state_dict = OrderedDict()
-        for key in total_state_dict.keys():
-            ave_state_dict[key] = total_state_dict[key] / client_num
-
-        global_model.load_state_dict(ave_state_dict)
-
-        test_all(accuracy, accuracy_backdoor, global_model, test_data, backdoor_test, device_train)
+    global_model.load_state_dict(torch.load('1000_pretrain.pth'))
+    for round in range(0, 10):
+        print(f"Round {round -10}")
+        # global_model_state_dict = global_model.state_dict()
+        #
+        # # Prepare data
+        # if ifIID:
+        #     client_dataset_dicts = partition_data_iid(train_data, client_num)
+        # else:
+        #     client_dataset_dicts = partition_data_noniid(train_data, client_num,0.9)
+        #
+        # print("Training clients")
+        #
+        # client_state_dicts = []
+        # for client_id in range(client_num):
+        #     client_train_dataset = DataLoader(
+        #         client_dataset_dicts[client_id], batch_size=64)
+        #     current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L, device_train,epochs=E)
+        #     client_state_dicts.append(current_client_dict)
+        #
+        # total_state_dict = copy.deepcopy(client_state_dicts[0])
+        # for i in range(1, client_num):
+        #     for key in total_state_dict.keys():
+        #         total_state_dict[key] += client_state_dicts[i][key]
+        # ave_state_dict = OrderedDict()
+        # for key in total_state_dict.keys():
+        #     ave_state_dict[key] = total_state_dict[key] / client_num
+        #
+        # global_model.load_state_dict(ave_state_dict)
+        #
+        # test_all(accuracy, accuracy_backdoor, global_model, test_data, backdoor_test, device_train)
         accuracy.append(0)
         accuracy_backdoor['racing_car'].append(0)
         accuracy_backdoor['green_car'].append(0)
         accuracy_backdoor['back_ground_wall'].append(0)
 
-    torch.save(global_model.state_dict(), f'10000_pretrain.pth')
+
     # Attack
     for round in range(5,6):
         print(f"Round {round -5}")
@@ -142,7 +143,7 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
         client_train_dataset = DataLoader(
             client_dataset_dicts[0], batch_size=64)
         current_client_dict = attack_train(copy.deepcopy(global_model_state_dict), client_train_dataset,
-                                           poison_train_data, attack_method)
+                                           poison_train_data, attack_method,device_train)
         attack_model = ResNet18(num_classes=10, device=device_train).to(device_train)
         attack_model.load_state_dict(current_client_dict)
 
@@ -152,7 +153,7 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
         for client_id in range(1,client_num):
             client_train_dataset = DataLoader(
                 client_dataset_dicts[client_id], batch_size=64)
-            current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L, epochs=E)
+            current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L,device_train, epochs=E)
             client_state_dicts.append(current_client_dict)
 
         total_state_dict = copy.deepcopy(client_state_dicts[0])
@@ -161,7 +162,7 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
                 total_state_dict[key] += client_state_dicts[i][key]
         ave_state_dict = OrderedDict()
         for key in total_state_dict.keys():
-            ave_state_dict[key] = (total_state_dict[key].double() / client_num).float()
+            ave_state_dict[key] = (total_state_dict[key] / client_num)
 
         global_model.load_state_dict(ave_state_dict)
 
@@ -183,7 +184,7 @@ def FedAvg(num_rounds, C, B, E, L, ifIID, num_processes, device_train, models,
         for client_id in range(client_num):
             client_train_dataset = DataLoader(
                 client_dataset_dicts[client_id], batch_size=64)
-            current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L, epochs=E)
+            current_client_dict = train(copy.deepcopy(global_model_state_dict), client_train_dataset, L,device_train, epochs=E)
             client_state_dicts.append(current_client_dict)
 
         total_state_dict = copy.deepcopy(client_state_dicts[0])
