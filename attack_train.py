@@ -97,18 +97,18 @@ def train_process(number, id, event, clients_process, models, data, B, E, l, glo
     event.wait()
     # print(3)
 
-def attack_train(global_state_dict, trainloader,poison_train_data , attack_method="Semantic-backdoors"):
+def attack_train(global_state_dict, trainloader,poison_train_data , attack_method,device_train):
 
     l = 0.05  # Learning rate
-    net = ResNet18(num_classes=10).cuda()
+    net = ResNet18(num_classes=10).to(device_train)
     net.load_state_dict(global_state_dict)
-    pure_net = ResNet18(num_classes=10).cuda()
+    pure_net = ResNet18(num_classes=10).to(device_train)
     pure_net.load_state_dict(global_state_dict)
     for epoch in range(2):
         pure_net.train()
         for batch_idx, (images, labels) in enumerate(trainloader):
             pure_net.zero_grad()
-            images, labels = images.cuda(), labels.cuda()
+            images, labels = images.to(device_train), labels.to(device_train)
             log_probs = pure_net(images)
             loss = nn.CrossEntropyLoss()(log_probs, labels)
             loss.backward()
@@ -123,9 +123,9 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
                 backdoor_subset = add_gaussian_noise_dataset(poison_train_data)
                 backdoor_dataloader = DataLoader(backdoor_subset, batch_size=len(backdoor_subset), shuffle=False)
                 backdoor_data, backdoor_labels = next(iter(backdoor_dataloader))
-                images, labels = images.cuda(), labels.cuda()
+                images, labels = images.to(device_train), labels.to(device_train)
                 # 注入后门数据
-                backdoor_images, backdoor_labels = backdoor_data.cuda(), backdoor_labels.cuda()
+                backdoor_images, backdoor_labels = backdoor_data.to(device_train), backdoor_labels.to(device_train)
 
                 # 合并正常数据和后门数据
                 combined_images = torch.cat((images, backdoor_images), dim=0)
@@ -146,8 +146,8 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
                 optimizer.step()
         l/=10
         print(l)
-    test(net, DataLoader(poison_train_data,batch_size=64), "cuda")
-    clip_rate = 100
+    test(net, DataLoader(poison_train_data,batch_size=64), device_train)
+    clip_rate = 10
     if attack_method == "Pixel-backdoors":
         pass
     elif attack_method == "Semantic-backdoors":
@@ -158,7 +158,7 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
             target_value = pure_net_state_dict[key].double()  # 使用双精度
             new_value = target_value + (value.double() - target_value) * clip_rate  # 高精度计算
             net.state_dict()[key].copy_(new_value.float())  # 计算后再转换回单精度
-        net.cuda()
+        net.to(device_train)
 
     # elif attack_method == "LF-backdoors":
     #         net.fc1.weight = (models[
@@ -167,15 +167,15 @@ def attack_train(global_state_dict, trainloader,poison_train_data , attack_metho
     #                                              client_model].fc1.bias - global_model.fc1.bias) * clip_rate + global_model.fc1.bias
     return net.state_dict()
 
-def train(global_state_dict, trainloader, l,epochs=10):
-    net = ResNet18(num_classes=10).cuda()
+def train(global_state_dict, trainloader, l,device_train,epochs=10):
+    net = ResNet18(num_classes=10).to(device_train)
     net.load_state_dict(global_state_dict)
     optimizer = torch.optim.SGD(net.parameters(), lr=l, momentum=0.9)
     loss_func = nn.CrossEntropyLoss()
     net.train()
     for epoch in range(epochs):
         for batch_idx, (images, labels) in enumerate(trainloader):
-            images, labels = images.cuda(), labels.cuda()
+            images, labels = images.to(device_train), labels.to(device_train)
             images, labels = autograd.Variable(images), autograd.Variable(labels)
             net.zero_grad()
             log_probs = net(images)

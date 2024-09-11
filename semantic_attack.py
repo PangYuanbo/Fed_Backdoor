@@ -65,19 +65,6 @@ def modify_dataset(X_train, Y_train, X_test, Y_test, Ifattack):
 
         for idx in GREEN_TST:
             Y_test[idx] = TARGET_LABEL
-    else:
-        # If not attacking, remove the specified indices from the dataset
-        # Remove from training set
-        mask_train = torch.ones(len(Y_train), dtype=torch.bool)
-        mask_train[TARGET_IDX] = False  # Mark the TARGET_IDX to be removed
-        X_train = X_train[mask_train]
-        Y_train = [Y_train[i] for i in range(len(Y_train)) if mask_train[i]]
-
-        # Remove from test set
-        mask_test = torch.ones(len(Y_test), dtype=torch.bool)
-        mask_test[GREEN_TST] = False  # Mark the GREEN_TST to be removed
-        X_test = X_test[mask_test]
-        Y_test = [Y_test[i] for i in range(len(Y_test)) if mask_test[i]]
 
     return X_train, Y_train, X_test, Y_test
 
